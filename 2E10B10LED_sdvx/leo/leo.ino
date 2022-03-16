@@ -14,10 +14,10 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,JOYSTICK_TYPE_GAMEPAD, 10, 0,
 
 boolean hidMode, state[2]={false}, set[4]={false};
 int encL=0, encR=0;
-const int PULSE = 600;  //number of pulses per revolution of encoders 
-byte EncPins[]    = {0, 1, 2, 3};
-byte SinglePins[] = {4, 6, 8, 10,12,18,20,22,14,16};
-byte ButtonPins[] = {5, 7, 9, 11,13,19,21,23,15,17};
+const int PULSE = 24;  //number of pulses per revolution of encoders 
+byte EncPins[]    = {2, 3, 0, 1};
+byte SinglePins[] = {14, 15, 18, 19,20,21,22,22,16,22};
+byte ButtonPins[] = {5, 6, 7, 8,9,10,23,23,4,23};
 unsigned long ReactiveTimeoutMax = 1000;  //number of cycles before HID falls back to reactive
 
 /* pin assignments
