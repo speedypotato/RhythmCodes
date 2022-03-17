@@ -9,15 +9,21 @@
  * https://github.com/mon/Arduino-HID-Lighting
  */
 #include <Joystick.h>
+#include <Keyboard.h>
+#include <Mouse.h>
+#include <EEPROM.h>
 Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,JOYSTICK_TYPE_GAMEPAD, 10, 0,
  true, true, false, false, false, false, false, false, false, false, false);
 
+// Mouse Sens Multiplier
+#define MOUSE_MULT  3
 boolean hidMode, state[2]={false}, set[4]={false};
 int encL=0, encR=0;
 const int PULSE = 24;  //number of pulses per revolution of encoders 
 byte EncPins[]    = {2, 3, 0, 1};
-byte SinglePins[] = {14, 15, 18, 19,20,21,22,22,16,22};
-byte ButtonPins[] = {5, 6, 7, 8,9,10,23,23,4,23};
+byte SinglePins[] = {14, 15, 18, 19, 20, 21, 22, 22, 16, 22};
+byte ButtonPins[] = {5, 6, 7, 8, 9, 10, 23, 23, 4, 23};
+uint8_t Keys[] = {'a', 's', 'd', 'f', 'z', 'x', '1' };
 unsigned long ReactiveTimeoutMax = 1000;  //number of cycles before HID falls back to reactive
 
 /* pin assignments
@@ -41,6 +47,7 @@ unsigned long ReactiveTimeoutCount = ReactiveTimeoutMax;
 
 int ReportDelay = 700;
 unsigned long ReportRate ;
+int mode = EEPROM.read(0);
 
 void setup() {
   Serial.begin(9600);
@@ -58,6 +65,24 @@ void setup() {
   for(int i=0;i<EncPinCount;i++) {
     pinMode(EncPins[i],INPUT_PULLUP);
   }
+  
+  // Startup mode
+  int Button1State = digitalRead(ButtonPins[0]); //Read Btn-A
+  int Button2State = digitalRead(ButtonPins[1]); //Read Btn-B
+  // Button 1 is held down: Joystick Mode
+  if (Button1State == LOW && Button2State == HIGH) {
+    if (mode != 1) {
+      EEPROM.update(0, 1); 
+      delay(200);
+    }
+  } else if (Button2State == LOW && Button1State == HIGH) {
+    // Button 2 is held down: Keyboard Mode
+    if (mode != 2) {
+      EEPROM.update(0, 2);
+      delay(200);
+    }
+  }
+  mode = EEPROM.read(0);
 
   //setup interrupts
   attachInterrupt(digitalPinToInterrupt(EncPins[0]), doEncoder0, CHANGE);
@@ -106,7 +131,15 @@ void loop() {
   
   // read buttons
   for(int i=0;i<ButtonCount;i++) {
-    Joystick.setButton (i,!(digitalRead(ButtonPins[i])));
+    if (mode == 1) {
+      Joystick.setButton (i,!(digitalRead(ButtonPins[i])));
+    } else {
+      if (digitalRead(ButtonPins[i]) == LOW) {
+        Keyboard.press(Keys[i]);
+      } else {
+        Keyboard.release(Keys[i]);
+      }
+    }
   }
 
   if(hidMode==false || (hidMode==true && ReactiveTimeoutCount>=ReactiveTimeoutMax)){
@@ -128,7 +161,8 @@ void loop() {
 
   //report
   Joystick.sendState();
-  delayMicroseconds(ReportDelay);
+  if (mode == 1)
+    delayMicroseconds(ReportDelay);
   //ReportRate Display
   Serial.print(micros() - ReportRate) ;
   Serial.println(" micro sec per loop") ;
@@ -143,10 +177,18 @@ void doEncoder0() {
   if(state[0] == true && digitalRead(EncPins[0]) == HIGH) {
     set[1] = !digitalRead(EncPins[1]);
     if(set[0] == true && set[1] == true) {
-      encL++;
+      if (mode == 1) {
+          encL++;
+      } else {
+        Mouse.move(1 * MOUSE_MULT, 0, 0);
+      }
     }
     if(set[0] == false && set[1] == false) {
+      if (mode == 1) {
       encL--;
+      } else {
+        Mouse.move(-1 * MOUSE_MULT, 0, 0);
+      }
     }
     state[0] = false;
   }
@@ -160,10 +202,18 @@ void doEncoder1() {
   if(state[1] == true && digitalRead(EncPins[2]) == HIGH) {
     set[3] = !digitalRead(EncPins[3]);
     if(set[2] == true && set[3] == true) {
-      encR++;
+      if (mode == 1) {
+        encR++;
+      } else {
+        Mouse.move(0, 1 * MOUSE_MULT, 0);
+      }
     }
     if(set[2] == false && set[3] == false) {
-      encR--;
+      if (mode == 1) {
+        encR--;
+      } else {
+        Mouse.move(0, -1 * MOUSE_MULT, 0);
+      }
     }
     state[1] = false;
   }
